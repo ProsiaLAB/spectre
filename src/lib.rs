@@ -15,6 +15,7 @@
 
 pub mod beam;
 pub mod cdms;
+pub mod errors;
 pub mod hitran;
 pub mod jpl;
 pub mod lamda;
