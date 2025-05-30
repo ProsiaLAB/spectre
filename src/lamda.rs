@@ -1,5 +1,6 @@
 //! Readers and writers for the Leiden Atomic and Molecular Database (LAMDA)
 
+use std::collections::HashMap;
 use std::io::BufReader;
 use std::io::{BufRead, Read};
 
@@ -34,12 +35,19 @@ pub struct RadTransition {
 }
 
 #[derive(Debug)]
-pub struct ColliTransition {}
+pub struct ColliTransition {
+    pub id: usize,
+    pub up: usize,
+    pub low: usize,
+    pub temps: Vec<f64>,
+    pub coll_rate: Vec<(f64, f64)>,
+}
 
 #[derive(Debug, Default)]
 pub struct LAMDAData {
     pub levels: Vec<Level>,
     pub rad_transitions: Vec<RadTransition>,
+    pub coll_transitions: HashMap<String, Vec<ColliTransition>>,
 }
 
 impl LAMDAData {
@@ -87,11 +95,67 @@ impl LAMDAData {
             })??
             .parse()?;
 
-        dbg!(colli_partner_count);
+        let mut coll_transitions = HashMap::new();
+        for _ in 0..colli_partner_count {
+            let partner_info = lines.nth(1).ok_or_else(|| {
+                LAMDAError::ParseError("Missing partner transition header".into())
+            })??;
+            let partner_id = partner_info
+                .split_whitespace()
+                .next()
+                .ok_or_else(|| LAMDAError::ParseError("Missing partner transition ID".into()))?;
+            let partner_name = match partner_id {
+                "1" => "H2",
+                "2" => "p-H2",
+                "3" => "o-H2",
+                "4" => "e",
+                "5" => "H",
+                "6" => "He",
+                "7" => "H+",
+                _ => {
+                    return Err(LAMDAError::ParseError(
+                        "Invalid partner transition ID".into(),
+                    ));
+                }
+            };
+            let colli_transitions_count: usize = lines
+                .nth(1)
+                .ok_or_else(|| {
+                    LAMDAError::ParseError("Missing collisional transition count".into())
+                })??
+                .parse()?;
+            let _: usize = lines
+                .nth(1)
+                .ok_or_else(|| {
+                    LAMDAError::ParseError("Missing collisional transition header".into())
+                })??
+                .parse()?;
+            let colli_transitions_temps = lines
+                .nth(1)
+                .ok_or_else(|| {
+                    LAMDAError::ParseError("Missing collisional transition temperatures".into())
+                })??
+                .split_whitespace()
+                .map(|x| {
+                    x.parse::<f64>()
+                        .map_err(|e| LAMDAError::ParseError(e.to_string()))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            lines.next().ok_or_else(|| {
+                LAMDAError::ParseError("Missing collisional transition data".into())
+            })??;
+            let colli_transitions = (0..colli_transitions_count)
+                .map(|_| Self::parse_colli_transition(&mut lines, &colli_transitions_temps))
+                .collect::<Result<Vec<_>, _>>()?;
+
+            coll_transitions.insert(partner_name.to_string(), colli_transitions);
+        }
 
         Ok(Self {
             levels,
             rad_transitions,
+            coll_transitions,
         })
     }
 
@@ -169,15 +233,50 @@ impl LAMDAData {
         })
     }
 
-    fn parse_colli_transition<I>(lines: &mut I) -> Result<ColliTransition, LAMDAError>
+    fn parse_colli_transition<I>(
+        lines: &mut I,
+        temps: &[f64],
+    ) -> Result<ColliTransition, LAMDAError>
     where
         I: Iterator<Item = Result<String, std::io::Error>>,
     {
         let line = lines
             .next()
             .ok_or_else(|| LAMDAError::ParseError("Missing collisional transition".into()))??;
+
         let mut fields = line.split_whitespace();
 
-        Ok(ColliTransition {})
+        let id = fields
+            .next()
+            .ok_or_else(|| LAMDAError::ParseError("Missing transition ID".into()))?
+            .parse()
+            .map_err(|e| LAMDAError::ParseError(format!("Invalid transition ID: {}", e)))?;
+
+        let up = fields
+            .next()
+            .ok_or_else(|| LAMDAError::ParseError("Missing upper level ID".into()))?
+            .parse()
+            .map_err(|e| LAMDAError::ParseError(format!("Invalid upper level ID: {}", e)))?;
+
+        let low = fields
+            .next()
+            .ok_or_else(|| LAMDAError::ParseError("Missing lower level ID".into()))?
+            .parse()
+            .map_err(|e| LAMDAError::ParseError(format!("Invalid lower level ID: {}", e)))?;
+
+        let mut coll_rate = Vec::new();
+
+        for (i, field) in fields.enumerate() {
+            let rate: f64 = field.parse()?;
+            coll_rate.push((rate, temps[i]));
+        }
+
+        Ok(ColliTransition {
+            id,
+            up,
+            low,
+            temps: temps.to_vec(),
+            coll_rate,
+        })
     }
 }
