@@ -12,11 +12,15 @@
 //! * `specutils` - Likely full-fledged implementation.
 //! * `spectral_cube` - Likely full-fledged implementation.
 //! * `radio_beam` - Likely full-fledged implementation.
+#[macro_use]
+extern crate uom;
 
 pub mod beam;
 pub mod cdms;
+pub mod constants;
 pub mod errors;
 pub mod hitran;
 pub mod jpl;
 pub mod lamda;
+pub mod units;
 pub mod utils;
