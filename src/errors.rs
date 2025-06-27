@@ -1,42 +1,39 @@
-use std::fmt;
-use std::io;
-use std::num::ParseFloatError;
+pub mod database {
+    use std::io;
+    use std::num::{ParseFloatError, ParseIntError};
+    use thiserror::Error;
 
-#[derive(Debug)]
-pub enum LAMDAError {
-    Io(io::Error),
-    ParseError(String),
-    ParseInt(std::num::ParseIntError),
-    ParseFloat(ParseFloatError),
-}
+    #[derive(Debug, Error)]
+    pub enum LAMDAError {
+        #[error("IO error: {0}")]
+        Io(#[from] io::Error),
 
-impl From<io::Error> for LAMDAError {
-    fn from(e: io::Error) -> Self {
-        LAMDAError::Io(e)
+        #[error("Parse error: {0}")]
+        ParseError(String),
+
+        #[error("Integer parse error: {0}")]
+        ParseInt(#[from] ParseIntError),
+
+        #[error("Float parse error: {0}")]
+        ParseFloat(#[from] ParseFloatError),
     }
 }
 
-impl From<std::num::ParseIntError> for LAMDAError {
-    fn from(e: std::num::ParseIntError) -> Self {
-        LAMDAError::ParseInt(e)
+pub mod radio {
+    use thiserror::Error;
+
+    #[derive(Debug, Error)]
+    pub enum BeamError {
+        #[error("Can only specify one of {{major, minor, pa}} and {{area}}.")]
+        ExclusiveParameterConflict,
+
+        #[error("Area unit should be equivalent to steradian (solid angle).")]
+        InvalidAreaUnit,
+
+        #[error("Missing parameter.")]
+        MissingParameter,
+
+        #[error("Minor axis greater than major axis")]
+        MinorGreaterThanMajor,
     }
 }
-
-impl From<ParseFloatError> for LAMDAError {
-    fn from(e: ParseFloatError) -> Self {
-        LAMDAError::ParseFloat(e)
-    }
-}
-
-impl fmt::Display for LAMDAError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            LAMDAError::Io(e) => write!(f, "IO error: {}", e),
-            LAMDAError::ParseError(msg) => write!(f, "Parse error: {}", msg),
-            LAMDAError::ParseInt(e) => write!(f, "Integer parse error: {}", e),
-            LAMDAError::ParseFloat(e) => write!(f, "Float parse error: {}", e),
-        }
-    }
-}
-
-impl std::error::Error for LAMDAError {}
