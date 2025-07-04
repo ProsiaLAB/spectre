@@ -22,7 +22,7 @@ pub mod database {
 pub mod radio {
     use thiserror::Error;
 
-    #[derive(Debug, Error)]
+    #[derive(Debug, Error, PartialEq)]
     pub enum BeamError {
         #[error("Can only specify one of {{major, minor, pa}} and {{area}}.")]
         ExclusiveParameterConflict,
