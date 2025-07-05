@@ -81,6 +81,13 @@ impl Beam {
         let (new_major, new_minor, new_pa) = deconvolve(&self, &other);
         Beam::new(Some(new_major), Some(new_minor), Some(new_pa), None).unwrap()
     }
+
+    pub fn is_circular(&self, rtol: Option<f64>) -> bool {
+        let rtol = rtol.unwrap_or(1e-6);
+        let frac_diff =
+            (self.major.get::<degree>() - self.minor.get::<degree>()) / self.major.get::<degree>();
+        frac_diff <= rtol
+    }
 }
 
 impl Mul<Beam> for Beam {
@@ -101,7 +108,18 @@ impl Div<Beam> for Beam {
 
 impl PartialEq for Beam {
     fn eq(&self, other: &Self) -> bool {
-        todo!()
+        let atol_deg = 1e-10;
+        let this_pa = self.pa.get::<degree>() % 180.0;
+        let other_pa = other.pa.get::<degree>() % 180.0;
+
+        let equal_pa = self.is_circular(None) || (this_pa - other_pa).abs() < atol_deg;
+
+        let equal_major =
+            (self.major.get::<degree>() - other.major.get::<degree>()).abs() < atol_deg;
+        let equal_minor =
+            (self.minor.get::<degree>() - other.minor.get::<degree>()).abs() < atol_deg;
+
+        equal_major && equal_minor && equal_pa
     }
 }
 
