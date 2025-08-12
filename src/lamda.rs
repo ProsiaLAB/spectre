@@ -82,6 +82,7 @@ impl LAMDAData {
         let molecule_weight: f64 = lines
             .next()
             .ok_or_else(|| LAMDAError::ParseError("Missing molecule weight".into()))??
+            .trim()
             .parse()?;
 
         // Number of energy levels
@@ -89,6 +90,7 @@ impl LAMDAData {
         let level_count: usize = lines
             .next()
             .ok_or_else(|| LAMDAError::ParseError("Missing level count".into()))??
+            .trim()
             .parse()?;
 
         let mut levels = Vec::new();
@@ -101,7 +103,11 @@ impl LAMDAData {
             let id: usize = fields[0].parse()?;
             let energy: f64 = fields[1].parse()?;
             let weight: f64 = fields[2].parse()?;
-            let j: usize = fields[3].parse()?;
+            let j = if fields.len() < 4 {
+                0
+            } else {
+                fields[3].parse()?
+            };
             levels.push(Level {
                 id,
                 energy,
@@ -115,6 +121,7 @@ impl LAMDAData {
         let rad_transition_count: usize = lines
             .next()
             .ok_or_else(|| LAMDAError::ParseError("Missing radiative transition count".into()))??
+            .trim()
             .parse()?;
 
         let mut radset = Vec::new();
@@ -145,6 +152,7 @@ impl LAMDAData {
         let colli_partner_count: usize = lines
             .next()
             .ok_or_else(|| LAMDAError::ParseError("Missing collisional partner count".into()))??
+            .trim()
             .parse()?;
 
         let mut collsets = HashMap::new();
@@ -182,6 +190,7 @@ impl LAMDAData {
                 .ok_or_else(|| {
                     LAMDAError::ParseError("Missing collisional transition count".into())
                 })??
+                .trim()
                 .parse()?;
 
             // Number of collisional temperatures
@@ -191,6 +200,7 @@ impl LAMDAData {
                 .ok_or_else(|| {
                     LAMDAError::ParseError("Missing collisional temperature count".into())
                 })??
+                .trim()
                 .parse()?;
 
             // Collisional temperatures
