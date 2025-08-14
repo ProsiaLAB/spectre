@@ -99,15 +99,25 @@ impl LAMDAData {
         lines.next();
         for line in lines.by_ref().take(level_count) {
             let line = line?;
-            let fields = line.split_whitespace().collect::<Vec<_>>();
-            let id: usize = fields[0].parse()?;
-            let energy: f64 = fields[1].parse()?;
-            let weight: f64 = fields[2].parse()?;
-            let j = if fields.len() < 4 {
-                0
-            } else {
-                fields[3].parse()?
-            };
+            let mut fields = line.split_whitespace();
+            let id: usize = fields
+                .next()
+                .ok_or_else(|| LAMDAError::ParseError("Missing level ID".into()))?
+                .parse()?;
+            let energy: f64 = fields
+                .next()
+                .ok_or_else(|| LAMDAError::ParseError("Missing level energy".into()))?
+                .parse()?;
+            let weight: f64 = fields
+                .next()
+                .ok_or_else(|| LAMDAError::ParseError("Missing level weight".into()))?
+                .parse()?;
+            let j = fields
+                .next()
+                .ok_or_else(|| LAMDAError::ParseError("Missing level J value".into()))?
+                .parse::<usize>()
+                .unwrap_or(0); // Default to 0 if J is not provided
+
             levels.push(Level {
                 id,
                 energy,
@@ -130,13 +140,31 @@ impl LAMDAData {
         lines.next();
         for line in lines.by_ref().take(rad_transition_count) {
             let line = line?;
-            let fields = line.split_whitespace().collect::<Vec<_>>();
-            let id: usize = fields[0].parse()?;
-            let upper_level: usize = fields[1].parse()?;
-            let lower_level: usize = fields[2].parse()?;
-            let einst_a: f64 = fields[3].parse()?;
-            let freq: f64 = fields[4].parse()?;
-            let energy: f64 = fields[5].parse()?;
+            let mut fields = line.split_whitespace();
+            let id: usize = fields
+                .next()
+                .ok_or_else(|| LAMDAError::ParseError("Missing radiative transition ID".into()))?
+                .parse()?;
+            let upper_level: usize = fields
+                .next()
+                .ok_or_else(|| LAMDAError::ParseError("Missing upper level".into()))?
+                .parse()?;
+            let lower_level: usize = fields
+                .next()
+                .ok_or_else(|| LAMDAError::ParseError("Missing lower level".into()))?
+                .parse()?;
+            let einst_a: f64 = fields
+                .next()
+                .ok_or_else(|| LAMDAError::ParseError("Missing Einstein A coefficient".into()))?
+                .parse()?;
+            let freq: f64 = fields
+                .next()
+                .ok_or_else(|| LAMDAError::ParseError("Missing frequency".into()))?
+                .parse()?;
+            let energy: f64 = fields
+                .next()
+                .ok_or_else(|| LAMDAError::ParseError("Missing energy".into()))?
+                .parse()?;
             radset.push(RadTransition {
                 id,
                 up: upper_level,
@@ -222,18 +250,26 @@ impl LAMDAData {
             lines.next();
             for line in lines.by_ref().take(colli_transition_count) {
                 let line = line?;
-                let fields = line.split_whitespace().collect::<Vec<_>>();
-                let (transition_info, coll_rate_data) = fields.split_at(3);
-                let id: usize = transition_info[0].parse()?;
-                let up: usize = transition_info[1].parse()?;
-                let low: usize = transition_info[2].parse()?;
+                let mut fields = line.split_whitespace();
+                let id: usize = fields
+                    .next()
+                    .ok_or_else(|| LAMDAError::ParseError("missing id".into()))?
+                    .parse()?;
+                let up: usize = fields
+                    .next()
+                    .ok_or_else(|| LAMDAError::ParseError("missing up".into()))?
+                    .parse()?;
+                let low: usize = fields
+                    .next()
+                    .ok_or_else(|| LAMDAError::ParseError("missing low".into()))?
+                    .parse()?;
 
                 let mut coll_rates = Vec::new();
 
-                for (i, &temp) in temps.iter().enumerate() {
+                for (i, rate_str) in fields.enumerate() {
                     let coll_rate = CollRate {
-                        temp,
-                        rate: coll_rate_data[i].parse()?,
+                        temp: temps[i],
+                        rate: rate_str.parse()?,
                     };
                     coll_rates.push(coll_rate);
                 }
