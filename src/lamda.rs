@@ -93,7 +93,7 @@ impl LAMDAData {
             .trim()
             .parse()?;
 
-        let mut levels = Vec::new();
+        let mut levels = Vec::with_capacity(level_count);
 
         // Energy levels
         lines.next();
@@ -134,7 +134,7 @@ impl LAMDAData {
             .trim()
             .parse()?;
 
-        let mut radset = Vec::new();
+        let mut radset = Vec::with_capacity(level_count);
 
         // Radiative transitions
         lines.next();
@@ -244,7 +244,7 @@ impl LAMDAData {
                 })
                 .collect::<Result<Vec<_>, _>>()?;
 
-            let mut coll_transitions = Vec::new();
+            let mut coll_transitions = Vec::with_capacity(colli_transition_count);
 
             // Collisional transitions
             lines.next();
