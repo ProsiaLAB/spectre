@@ -20,6 +20,7 @@ pub mod cdms;
 pub mod constants;
 pub mod errors;
 pub mod hitran;
+pub mod io;
 pub mod jpl;
 pub mod lamda;
 pub mod units;
