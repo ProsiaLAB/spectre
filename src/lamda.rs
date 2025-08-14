@@ -2,8 +2,8 @@
 
 use std::collections::HashMap;
 use std::fs::File;
+use std::io::BufRead;
 use std::io::BufReader;
-use std::io::{BufRead, Read};
 use std::path::Path;
 
 use crate::errors::database::LAMDAError;
@@ -67,8 +67,7 @@ pub struct LAMDAData {
 }
 
 impl LAMDAData {
-    pub fn from_reader<R: Read>(reader: R) -> Result<Self, LAMDAError> {
-        let reader = BufReader::new(reader);
+    pub fn from_reader<R: BufRead>(reader: R) -> Result<Self, LAMDAError> {
         let mut lines = reader.lines();
 
         // Molecule name
