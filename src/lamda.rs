@@ -7,6 +7,7 @@ use std::io::BufReader;
 use std::path::Path;
 
 use crate::errors::database::LAMDAError;
+use crate::io::skip_line;
 
 #[derive(Debug)]
 pub struct Level {
@@ -67,38 +68,47 @@ pub struct LAMDAData {
 }
 
 impl LAMDAData {
-    pub fn from_reader<R: BufRead>(reader: R) -> Result<Self, LAMDAError> {
-        let mut lines = reader.lines();
+    pub fn from_reader<R: BufRead>(mut reader: R) -> Result<Self, LAMDAError> {
+        let mut buf = String::new();
 
         // Molecule name
-        lines.next();
-        let molecule_name = lines
-            .next()
-            .ok_or_else(|| LAMDAError::ParseError("Missing molecule name".into()))??;
+        skip_line(&mut reader, &mut buf)?;
+        buf.clear();
+        if reader.read_line(&mut buf)? == 0 {
+            return Err(LAMDAError::ParseError("Missing molecule name".into()));
+        }
+        let molecule_name = buf.trim().to_string();
 
         // Molecular weight
-        lines.next();
-        let molecule_weight: f64 = lines
-            .next()
-            .ok_or_else(|| LAMDAError::ParseError("Missing molecule weight".into()))??
-            .trim()
-            .parse()?;
+        skip_line(&mut reader, &mut buf)?;
+        buf.clear();
+        if reader.read_line(&mut buf)? == 0 {
+            return Err(LAMDAError::ParseError("Missing molecule weight".into()));
+        }
+        let molecule_weight: f64 = buf.trim().parse()?;
 
         // Number of energy levels
-        lines.next();
-        let level_count: usize = lines
-            .next()
-            .ok_or_else(|| LAMDAError::ParseError("Missing level count".into()))??
-            .trim()
-            .parse()?;
+        buf.clear();
+        reader.read_line(&mut buf)?;
+        buf.clear();
+        if reader.read_line(&mut buf)? == 0 {
+            return Err(LAMDAError::ParseError("Missing level count".into()));
+        }
+        let level_count: usize = buf.trim().parse()?;
 
         let mut levels = Vec::with_capacity(level_count);
 
         // Energy levels
-        lines.next();
-        for line in lines.by_ref().take(level_count) {
-            let line = line?;
-            let mut fields = line.split_whitespace();
+        skip_line(&mut reader, &mut buf)?;
+        for _ in 0..level_count {
+            buf.clear();
+            if reader.read_line(&mut buf)? == 0 {
+                return Err(LAMDAError::ParseError(
+                    "Unexpected EOF in levels section".into(),
+                ));
+            }
+
+            let mut fields = buf.split_whitespace();
             let id: usize = fields
                 .next()
                 .ok_or_else(|| LAMDAError::ParseError("Missing level ID".into()))?
@@ -113,9 +123,8 @@ impl LAMDAData {
                 .parse()?;
             let j = fields
                 .next()
-                .ok_or_else(|| LAMDAError::ParseError("Missing level J value".into()))?
-                .parse::<usize>()
-                .unwrap_or(0); // Default to 0 if J is not provided
+                .map(|s| s.parse().unwrap_or(0)) // default to 0 if missing
+                .unwrap_or(0);
 
             levels.push(Level {
                 id,
@@ -126,20 +135,29 @@ impl LAMDAData {
         }
 
         // Number of radiative transitions
-        lines.next();
-        let rad_transition_count: usize = lines
-            .next()
-            .ok_or_else(|| LAMDAError::ParseError("Missing radiative transition count".into()))??
-            .trim()
-            .parse()?;
+        skip_line(&mut reader, &mut buf)?;
+        buf.clear();
+        if reader.read_line(&mut buf)? == 0 {
+            return Err(LAMDAError::ParseError(
+                "Missing radiative transition count".into(),
+            ));
+        }
+        let rad_transition_count: usize = buf.trim().parse()?;
 
         let mut radset = Vec::with_capacity(level_count);
 
         // Radiative transitions
-        lines.next();
-        for line in lines.by_ref().take(rad_transition_count) {
-            let line = line?;
-            let mut fields = line.split_whitespace();
+        skip_line(&mut reader, &mut buf)?;
+        for _ in 0..rad_transition_count {
+            buf.clear();
+            if reader.read_line(&mut buf)? == 0 {
+                return Err(LAMDAError::ParseError(
+                    "Unexpected EOF in radiative transitions section".into(),
+                ));
+            }
+
+            let mut fields = buf.split_whitespace();
+
             let id: usize = fields
                 .next()
                 .ok_or_else(|| LAMDAError::ParseError("Missing radiative transition ID".into()))?
@@ -164,6 +182,7 @@ impl LAMDAData {
                 .next()
                 .ok_or_else(|| LAMDAError::ParseError("Missing energy".into()))?
                 .parse()?;
+
             radset.push(RadTransition {
                 id,
                 up: upper_level,
@@ -175,22 +194,23 @@ impl LAMDAData {
         }
 
         // Number of collisional partners
-        lines.next();
-        let colli_partner_count: usize = lines
-            .next()
-            .ok_or_else(|| LAMDAError::ParseError("Missing collisional partner count".into()))??
-            .trim()
-            .parse()?;
+        skip_line(&mut reader, &mut buf)?;
+        buf.clear();
+        if reader.read_line(&mut buf)? == 0 {
+            return Err(LAMDAError::ParseError(
+                "Missing collisional partner count".into(),
+            ));
+        }
+        let colli_partner_count: usize = buf.trim().parse()?;
 
         let mut collsets = HashMap::new();
 
         for _ in 0..colli_partner_count {
             // Partner ID
-            lines.next();
-            let partner_id_line = lines
-                .next()
-                .ok_or_else(|| LAMDAError::ParseError("Missing partner ID".into()))??;
-            let partner_id = partner_id_line
+            skip_line(&mut reader, &mut buf)?; // skip unused line
+            buf.clear();
+            reader.read_line(&mut buf)?;
+            let partner_id = buf
                 .split_whitespace()
                 .next()
                 .ok_or_else(|| LAMDAError::ParseError("Missing partner ID".into()))?;
@@ -211,45 +231,38 @@ impl LAMDAData {
             };
 
             // Number of collisional transitions
-            lines.next();
-            let colli_transition_count: usize = lines
-                .next()
-                .ok_or_else(|| {
-                    LAMDAError::ParseError("Missing collisional transition count".into())
-                })??
-                .trim()
-                .parse()?;
+            skip_line(&mut reader, &mut buf)?; // skip unused line
+            buf.clear();
+            reader.read_line(&mut buf)?;
+            let colli_transition_count: usize = buf.trim().parse()?;
 
             // Number of collisional temperatures
-            lines.next();
-            let _colli_temp_count: usize = lines
-                .next()
-                .ok_or_else(|| {
-                    LAMDAError::ParseError("Missing collisional temperature count".into())
-                })??
-                .trim()
-                .parse()?;
+            skip_line(&mut reader, &mut buf)?; // skip unused line
+            buf.clear();
+            reader.read_line(&mut buf)?;
+            let _colli_temp_count: usize = buf.trim().parse()?;
 
             // Collisional temperatures
-            lines.next();
-            let temp_line = lines.next().ok_or_else(|| {
-                LAMDAError::ParseError("Missing collisional temperatures".into())
-            })??;
-            let temps = temp_line
+            skip_line(&mut reader, &mut buf)?; // skip unused line
+            buf.clear();
+            reader.read_line(&mut buf)?;
+            let temps: Vec<f64> = buf
                 .split_whitespace()
                 .map(|x| {
                     x.parse::<f64>()
                         .map_err(|e| LAMDAError::ParseError(e.to_string()))
                 })
-                .collect::<Result<Vec<_>, _>>()?;
+                .collect::<Result<_, _>>()?;
 
             let mut coll_transitions = Vec::with_capacity(colli_transition_count);
 
             // Collisional transitions
-            lines.next();
-            for line in lines.by_ref().take(colli_transition_count) {
-                let line = line?;
-                let mut fields = line.split_whitespace();
+            skip_line(&mut reader, &mut buf)?; // skip unused line
+            for _ in 0..colli_transition_count {
+                buf.clear();
+                reader.read_line(&mut buf)?;
+                let mut fields = buf.split_whitespace();
+
                 let id: usize = fields
                     .next()
                     .ok_or_else(|| LAMDAError::ParseError("missing id".into()))?
@@ -263,29 +276,30 @@ impl LAMDAData {
                     .ok_or_else(|| LAMDAError::ParseError("missing low".into()))?
                     .parse()?;
 
-                let mut coll_rates = Vec::new();
-
+                let mut coll_rates = Vec::with_capacity(temps.len());
                 for (i, rate_str) in fields.enumerate() {
-                    let coll_rate = CollRate {
+                    coll_rates.push(CollRate {
                         temp: temps[i],
                         rate: rate_str.parse()?,
-                    };
-                    coll_rates.push(coll_rate);
+                    });
                 }
-                let coll_transition = ColliTransition {
+
+                coll_transitions.push(ColliTransition {
                     partner: partner_name.to_string(),
                     id,
                     up,
                     low,
                     coll_rates,
-                };
-                coll_transitions.push(coll_transition);
+                });
             }
-            let coll_set = CollSet {
-                temps,
-                coll_transitions,
-            };
-            collsets.insert(partner_name.to_string(), coll_set);
+
+            collsets.insert(
+                partner_name.to_string(),
+                CollSet {
+                    temps,
+                    coll_transitions,
+                },
+            );
         }
 
         Ok(Self {
