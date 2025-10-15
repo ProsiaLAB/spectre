@@ -3,15 +3,45 @@ use std::cmp::PartialEq;
 use std::f64::consts::PI;
 use std::ops::{Div, Mul};
 
-use uom::si::angle::second as arcsecond;
-use uom::si::angle::{degree, radian};
-use uom::si::f64::{Angle, SolidAngle};
-use uom::si::solid_angle::steradian;
-use uom::typenum::P2;
-
 use crate::constants::{FWHM_TO_AREA, SIGMA_TO_FWHM};
 use crate::errors::radio::BeamError;
 use crate::utils::approx_eq;
+
+#[derive(Debug)]
+struct Angle {
+    value: f64,
+    unit: AngleUnit,
+}
+
+impl Angle {
+    pub fn new<T>(value: f64) -> Self
+    where
+        T: Into<AngleUnit>,
+    {
+        Self {
+            value,
+            unit: T::into(),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct SolidAngle {
+    value: f64,
+    unit: SolidAngleUnit,
+}
+
+#[derive(Debug)]
+enum AngleUnit {
+    Radian,
+    Degree,
+    Arcsecond,
+}
+
+#[derive(Debug)]
+enum SolidAngleUnit {
+    Steradian,
+}
 
 #[derive(Debug)]
 pub struct Beam {
@@ -34,11 +64,11 @@ impl Beam {
         pa: Option<Angle>,
         area: Option<SolidAngle>,
     ) -> Result<Self, BeamError> {
-        let (major, minor, pa) = if let Some(area_val) = area {
+        let (major, minor, pa) = if let Some(area) = area {
             if major.is_some() || minor.is_some() || pa.is_some() {
                 return Err(BeamError::ExclusiveParameterConflict);
             }
-            let rad = (area_val.get::<steradian>() / (2.0 * PI)).sqrt();
+            let rad = (area.value / (2.0 * PI)).sqrt();
             let fwhm_rad_val = rad * SIGMA_TO_FWHM;
             let fwhm_arcsec_val = Angle::new::<radian>(fwhm_rad_val).get::<arcsecond>();
             (

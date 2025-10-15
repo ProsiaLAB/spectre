@@ -1,7 +1,5 @@
 use std::ops::Sub;
 
-use uom::si::f64::Angle;
-
 pub trait ApproxEq: Copy + PartialOrd + Sub<Output = Self> {
     fn abs_diff(self, other: Self) -> Self;
     fn approx_eq(self, other: Self, tolerance: Self) -> bool {

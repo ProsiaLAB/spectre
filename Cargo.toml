@@ -6,4 +6,3 @@ edition = "2024"
 [dependencies]
 approx = "0.5.1"
 thiserror = "2.0.12"
-uom = "0.37.0"
