@@ -9,7 +9,7 @@ use std::path::Path;
 use crate::errors::database::LAMDAError;
 use crate::io::skip_line;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Level {
     /// ID of the level
     pub id: usize,
@@ -21,7 +21,7 @@ pub struct Level {
     pub j: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RadTransition {
     /// ID of the transition
     pub id: usize,
@@ -37,13 +37,13 @@ pub struct RadTransition {
     pub energy: f64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CollRate {
     pub temp: f64,
     pub rate: f64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ColliTransition {
     pub partner: String,
     pub id: usize,
@@ -52,13 +52,13 @@ pub struct ColliTransition {
     pub coll_rates: Vec<CollRate>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CollSet {
     pub temps: Vec<f64>,
     pub coll_transitions: Vec<ColliTransition>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct LAMDAData {
     pub name: String,
     pub weight: f64,
