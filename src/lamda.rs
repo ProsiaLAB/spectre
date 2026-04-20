@@ -15,7 +15,7 @@ pub struct Level {
     pub id: usize,
     /// Energy of the level in cm^-1
     pub energy: f64,
-    ///  Statistical weight (degeneracy) of the level, g = (2J + 1) * symmetry_factor
+    ///  Statistical weight (degeneracy) of the level, g = (2J + 1) * `symmetry_factor`
     pub weight: f64,
     /// Total angular momentum quantum number of the level.
     pub j: usize,
@@ -68,6 +68,11 @@ pub struct LAMDAData {
 }
 
 impl LAMDAData {
+    /// Parse a LAMDA database from a [`BufRead`] reader.
+    ///
+    /// # Errors
+    /// Returns an error if the reader fails to read a line, or if the data is malformed.
+    #[allow(clippy::too_many_lines)]
     pub fn from_reader<R: BufRead>(mut reader: R) -> Result<Self, LAMDAError> {
         let mut buf = String::new();
 
@@ -121,10 +126,7 @@ impl LAMDAData {
                 .next()
                 .ok_or_else(|| LAMDAError::ParseError("Missing level weight".into()))?
                 .parse()?;
-            let j = fields
-                .next()
-                .map(|s| s.parse().unwrap_or(0)) // default to 0 if missing
-                .unwrap_or(0);
+            let j = fields.next().map_or(0, |s| s.parse().unwrap_or(0));
 
             levels.push(Level {
                 id,
@@ -311,6 +313,10 @@ impl LAMDAData {
         })
     }
 
+    /// Parse a LAMDA database from a file path.
+    ///
+    /// # Errors
+    /// Returns an error if the file cannot be opened, or if the data is malformed.
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, LAMDAError> {
         let file = File::open(path)?;
         let reader = BufReader::new(file);

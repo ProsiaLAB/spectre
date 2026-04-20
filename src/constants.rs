@@ -5,4 +5,4 @@ pub const FWHM_TO_AREA: f64 = 2.0 * PI / (8.0 * LN_2);
 
 /// Convert 2-dimensional Gaussian sigma^2 to FWHM
 /// == sqrt(8*ln(2))
-pub const SIGMA_TO_FWHM: f64 = 2.35482004503;
+pub const SIGMA_TO_FWHM: f64 = 2.354_820_045_03;

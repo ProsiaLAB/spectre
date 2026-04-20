@@ -8,7 +8,7 @@ fn main() -> Result<(), LAMDAError> {
         "/Users/kmaitreys/Documents/ProsiaLAB/spectre/data/molecule_13co.inp",
     )?;
 
-    println!("{:?}", molecule);
+    println!("{molecule:?}");
 
     Ok(())
 }
